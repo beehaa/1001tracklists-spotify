@@ -1,41 +1,89 @@
-# from selenium.webdriver.common.by import By
-# driver.find_element(by=By.XPATH, value='//<your xpath>')
+
+# import selenium
+# print(selenium.__version__)
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+import time
 
 
 class Tracklist:
-    # def __init__(self, slowMode=False, debug=False, checkCaptcha=True, timeToWait=3600) -> None:
-        # self.timeOutSecs = 10 
-        # self.scrollWaitTime = 5 
-        # self.numTimesToScroll = 5 
     def __init__(self, url):
-        self.options = Options()
-        self.options.add_argument("start-maximized")
-        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.options)
-        self.driver.get(url)
-        # try:
-        #     WebDriverWait(self.driver, 5).until(EC.title_contains("Feed"))
-        # except Exception as e:
-        #     print("ERROR: logging error{}".format(e))
-        #     print("Please solve captcha and then type 'c' or 'continue'")
-        #     self.driver.switch_to.window(self.driver.current_window_handle) 
-        self.driver.minimize_window()
-        print("Logged into website")
+        self.chrome_options = Options()
+        # self.chrome_options.add_argument('--no-sandbox')
+        # self.chrome_options.add_argument('--disable-setuid-sandbox')
+        # self.chrome_options.add_argument('--dns-prefetch-disable')
+        # self.chrome_options.add_argument("--disable-dev-shm-usage")
+        # self.chrome_options.add_argument('--disable-gpu')
+        # self.chrome_options.add_argument("--window-size=1200x900")
+        # self.chrome_options.add_argument('--hide-scrollbars')
+        # self.chrome_options.add_argument('--enable-logging')
+        # self.chrome_options.add_argument('--log-level=0')
+        # self.chrome_options.add_argument('--v=99')
+        # self.chrome_options.add_argument('--single-process')
+        # self.chrome_options.add_argument('--ignore-certificate-errors')
+        # self.chrome_options.add_argument("--disable-extensions")
+        # self.chrome_options.add_argument("enable-automation")
+        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.chrome_options)
 
+        # t = time.time()
+        self.driver.set_page_load_timeout(60)
+        try:
+            self.driver.get(url)
+        except TimeoutException:
+            self.driver.execute_script("window.stop();")
+        # print('Time consuming:', time.time() - t)
+
+        WebDriverWait(self.driver, 60).until(EC.visibility_of_element_located((By.CLASS_NAME, 'tlpItem')))
+        tracks = self.driver.find_elements(by=By.CLASS_NAME, value='tlpItem')
+        
+        self.title_xpath = '//*[@id="tlTab"]/meta[1]'
+        self.playlist_title = self.driver.find_element(by=By.XPATH, value=self.title_xpath).get_attribute("content")
+
+        self.tracknames = []
+        self.spotify_links = [] 
+        self.tracks_dict = {}
+
+        for i in range(len(tracks)):
+            id = tracks[i].get_attribute('data-id')
+            # print(id)
+            title = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp{i}_content"]/meta[1]').get_attribute("content")
+            # print(title)
+            self.tracknames.append(title)
+            
+            WebDriverWait(self.driver, 60).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tlp_{id}"]/div[3]/i[3]')))
+            spotify_button = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp_{id}"]/div[3]/i[3]')
+            self.driver.execute_script("arguments[0].click();", spotify_button)
+
+            WebDriverWait(self.driver, 60).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tlp_{id}_player"]/div/div/iframe')))
+            link = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp_{id}_player"]/div/div/iframe').get_attribute("src")
+            # print(link)
+            self.spotify_links.append(link)
+
+            self.tracks_dict[title] = link
+    
+    
+    def get_track_list(self):
+        return self.tracknames 
+
+    def get_clean_spotify_links(self):
+        spot_ids = ["spotify:track:"+i.split('track/')[1] for i in self.spotify_links]
+        return spot_ids
+
+    def get_dict(self):
+        return self.tracks_dict
 
     def quit(self):
         self.driver.quit()
 
-URL = r'https://www.1001tracklists.com/tracklist/20nrw2tt/tiesto-club-life-819-tiesto-yearmix-2022-12-09.html'
+    def get_title(self):
+        if len(self.playlist_title)==0:
+            return 'New Playlist'
+        return self.playlist_title
 
-tracklist_site_obj = Tracklist(URL)
-print("Going to URL..")
-# tracklist_site_obj.get_tracks()
-tracklist_site_obj.quit()
