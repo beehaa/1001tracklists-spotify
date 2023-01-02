@@ -15,7 +15,16 @@ Clone this project locally:
 git clone https://github.com/beehaa/1001tracklists-spotify.git
 ```
 
-Get your Spotify developer API key and put it in a config.py file. Then simply run in the terminal and follow the prompts. It will ask you for the URL and then a confirmation. 
+Get your Spotify developer API keys (https://developer.spotify.com/dashboard/) and put it in a config.py file. 
+
+Create a configy.py file with the following in the same directory.
+
+```
+client_id = "enter_client_id_here"
+secret_id = "enter_client_secret_here"
+```
+
+Then simply run in the terminal and follow the prompts. It will ask you for the URL and then a confirmation. 
 
 ```
 python main.py
