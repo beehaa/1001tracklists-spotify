@@ -12,6 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import time
 
+from selenium.common.exceptions import NoSuchElementException
 
 class Tracklist:
     def __init__(self, url):
@@ -51,23 +52,30 @@ class Tracklist:
         self.tracks_dict = {}
 
         for i in range(len(tracks)):
-            id = tracks[i].get_attribute('data-id')
-            # print(id)
-            title = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp{i}_content"]/meta[1]').get_attribute("content")
-            # print(title)
-            self.tracknames.append(title)
-            
-            WebDriverWait(self.driver, 60).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tlp_{id}"]/div[3]/i[3]')))
-            spotify_button = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp_{id}"]/div[3]/i[3]')
-            self.driver.execute_script("arguments[0].click();", spotify_button)
+            try: 
+                title = None 
+                link = None 
+                id = tracks[i].get_attribute('data-id')
 
-            WebDriverWait(self.driver, 60).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tlp_{id}_player"]/div/div/iframe')))
-            link = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp_{id}_player"]/div/div/iframe').get_attribute("src")
-            # print(link)
-            self.spotify_links.append(link)
+                title = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp{i}_content"]/meta[1]').get_attribute("content")
+                
+                WebDriverWait(self.driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tlp_{id}"]/div[3]/i[3]')))
+                spotify_button = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp_{id}"]/div[3]/i[3]')
+                self.driver.execute_script("arguments[0].click();", spotify_button)
 
-            self.tracks_dict[title] = link
-    
+                WebDriverWait(self.driver, 10).until(EC.visibility_of_element_located((By.XPATH, f'//*[@id="tlp_{id}_player"]/div/div/iframe')))
+                link = self.driver.find_element(by=By.XPATH, value=f'//*[@id="tlp_{id}_player"]/div/div/iframe').get_attribute("src")
+
+                if title and link:
+                    self.tracknames.append(title)
+                    self.spotify_links.append(link)
+                    self.tracks_dict[title] = link
+            except NoSuchElementException:
+                print(f"NoSuchElementException: cannot find {i}")
+            except TimeoutException:
+                print(f"TimeoutException: cannot find {i}")
+        
+        print(f"Found {len(self.tracknames)}/{len(tracks)} tracks.")
     
     def get_track_list(self):
         return self.tracknames 
